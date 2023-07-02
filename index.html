@@ -1,0 +1,32 @@
+<!--
+    Scratch Account Backup Tool
+    by turtlehat 2023
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratch Account Backup Tool</title>
+    <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turbowarp/sbdl@2.3.3/lib/bundle-standalone.min.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+
+<body>
+    <h1>Scratch Account Backup Tool</h1>
+    <h2>by <a href="https://scratch.mit.edu/users/turtlehat" >@turtlehat</a> &copy;2023</h2>
+    
+    <main>
+        <div id="interface">
+            <form>
+                <label for="name">Account Name:</label>
+                @<input id="name" type="text" maxlength="21" placeholder="turtlehat">
+                <button id="submit" type="button">Fetch Project List</button>
+            </form>
+        </div>
+        <div id="log"></div>
+    </main>
+</body>

@@ -1,0 +1,11 @@
+#log p {
+    background-color: black;
+    color: white;
+    font-family: monospace;
+    margin: 0;
+    padding: 0.1em 0.5em;
+}
+
+#log p::before {
+    content: "> ";
+}
