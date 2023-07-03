@@ -9,10 +9,12 @@ A program for downloading all projects on a given Scratch user's account.
 5. Success probably, yay! :D
 
 # Credits
-Developed by @turtle-hat (@turtlehat on Scratch)
+Developed by @turtle-hat ([@turtlehat](https://scratch.mit.edu/users/turtlehat) on Scratch)
 
 Made possible by
-- [Scratch RESTful API](https://github.com/scratchfoundation/scratch-rest-api/wiki)
-- [forkphorus .sb Downloader API](https://github.com/forkphorus/sb-downloader)
+- [Scratch REST API - Scratch Foundation](https://github.com/scratchfoundation/scratch-rest-api/wiki)
+- [.sb Downloader API - forkphorus](https://github.com/forkphorus/sb-downloader)
+- [JSZip - Stuk](https://stuk.github.io/jszip/)
+- [FileSaver.js - eligray](https://github.com/eligrey/FileSaver.js)
 
 and viewers like you. Thank you!
