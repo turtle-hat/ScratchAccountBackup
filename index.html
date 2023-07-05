@@ -10,26 +10,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scratch Account Backup Tool</title>
+
     <script src="js/main.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turbowarp/sbdl@2.3.3/lib/bundle-standalone.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" href="media/favicon.ico">
 </head>
 
 <body>
-    <h1>Scratch Account Backup Tool</h1>
+    <h1><img id="logo" src="media/logo-128px.png">Scratch Account Backup Tool</h1>
     <h2>by <a href="https://scratch.mit.edu/users/turtlehat" >@turtlehat</a> &copy;2023</h2>
     
     <main>
         <div id="interface">
             <form>
                 <label for="name">Account Name:</label>
-                @<input id="name" type="text" maxlength="21" placeholder="turtlehat">
-                <button id="submit" type="button">Fetch Project List</button>
+                @<input id="name" type="text" maxlength="21" value="turtlehat" placeholder="account">
+                <br>
+                <button id="fetch" type="button">Fetch Project List</button>
+                <button id="download" type="button">Download Project Data</button>
             </form>
         </div>
         <div id="log"></div>
-        <div id="downloads"></div>
     </main>
 </body>
