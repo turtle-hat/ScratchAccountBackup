@@ -2,6 +2,8 @@ const SAMPLE_PROJECT = 255565;
 const DEFAULT_DOWNLOAD_OPTIONS = {
     date: new Date(),
 };
+const DEFAULT_LIMIT = 40;
+const DEFAULT_OFFSET = 0;
 
 // Page elements
 let inAccountName;
@@ -68,36 +70,40 @@ function downloadProjects() {
     }
 }
 
-async function fetchUserData(username = "turtlehat") {
+async function fetchUserData(username = "turtlehat", limit = DEFAULT_LIMIT, offset = DEFAULT_OFFSET) {
     jobsRunning++
 
     pageLogUser(`Fetching User Data...`, username);
 
-    let url = `https://api.scratch.mit.edu`;
+    let url = `php/get-user-projects-scratch.php?username=${username}&limit=${limit}&offset=${offset}`;
     console.log(url);
 
     // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
 
-    const request = new Request(url, {
-        method: 'GET'
-    });
+    const request = new Request(
+        url,
+        { method: 'GET' }
+        );
 
-    console.log(request);
+    console.log(request.url);
 
-    fetch(request)
-    .then((response) => {
+    // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
+    const response = await fetch(request);
+
+    if (response.ok) {
+        pageLogUser(`Fetching user data successful!`, username);
+
         console.log(response);
 
-        if (!response.ok) {
-            pageLogUser(`Error occurred fetching user data! ${response.status}`, username);
-            finishJob();
-            return;
-        }
-        
-        console.log(response.text);
+        const jsonResponse = await response.json();
 
-        finishJob();
-    });
+        console.log(jsonResponse);
+    }
+    else {
+        pageLogUser(`Error occurred fetching user data! ${response.status}`, username);
+    }
+
+    finishJob();
 }
 
 async function fetchProjectData(id = SAMPLE_PROJECT) {

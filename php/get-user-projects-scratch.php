@@ -23,7 +23,8 @@
     }
 
     // build URL to request from
-	$URL = "https://api.scratch.mit.edu/users/$username/projects?limit=$limit&offset=$offset";
+	$URL = "https://api.scratch.mit.edu/users/$username";
+	//$URL = "https://api.scratch.mit.edu/users/$username/projects?limit=$limit&offset=$offset";
 	header('content-type:application/json');      // tell the requestor that this is JSON
 	header("Access-Control-Allow-Origin: *");     // turn on CORS
 	echo file_get_contents($URL);
