@@ -4,7 +4,7 @@
     $offset = "0"; // the default amount to offset the search
 
     // if there is ?project, grab the value
-    if(array_key_exists('username', $_GET) && strlen($project)){
+    if(array_key_exists('username', $_GET) && strlen($username)){
         $project = $_GET['username'];
         // encode spaces in the parameters as +
         $project = str_replace(' ', '+', $project);

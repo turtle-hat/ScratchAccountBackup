@@ -106,8 +106,8 @@ async function doAjax(request) {
 
     if (response.ok) {
         console.log(response);
-        const responseJson = await response.json();
-        return Promise.resolve(responseJson);
+        const responseText = await response.json();
+        return Promise.resolve(responseText);
     }
     else {
         return Promise.reject(`Error occurred fetching user data! ${response.status}`);
