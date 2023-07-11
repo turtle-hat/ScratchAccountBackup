@@ -87,23 +87,31 @@ async function fetchUserData(username = "turtlehat", limit = DEFAULT_LIMIT, offs
 
     console.log(request.url);
 
-    // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
+    doAjax(request)
+    .then((response) => {
+        pageLogUser(`Fetching user data successful!`, username);
+        console.log(response);
+    })
+    .catch((e) => {
+        pageLogUser(e, username);
+    })
+    .then(() => {
+        finishJob();
+    });
+}
+
+// Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
+async function doAjax(request) {
     const response = await fetch(request);
 
     if (response.ok) {
-        pageLogUser(`Fetching user data successful!`, username);
-
         console.log(response);
-
-        const jsonResponse = await response.json();
-
-        console.log(jsonResponse);
+        const responseJson = await response.json();
+        return Promise.resolve(responseJson);
     }
     else {
-        pageLogUser(`Error occurred fetching user data! ${response.status}`, username);
+        return Promise.reject(`Error occurred fetching user data! ${response.status}`);
     }
-
-    finishJob();
 }
 
 async function fetchProjectData(id = SAMPLE_PROJECT) {
