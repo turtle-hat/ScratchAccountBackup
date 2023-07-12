@@ -7,13 +7,14 @@ const DEFAULT_OFFSET = 0;
 
 // Page elements
 let inAccountName;
-let btnFetch;
 let btnDownload;
-let outLog
-let outDownloads
+let outLog;
+let outDownloads;
 
 // User data retrieved from Scratch API
-let userData
+let username;
+let userData;
+let userProjectIDs;
 
 // Project data to be downloaded
 let projectMetadata;
@@ -21,12 +22,10 @@ let projectData;
 
 // Application progress tracking
 let running;
-let jobsRunning;
 
 window.onload = (e) => {
     // Find elements on page
     inAccountName = document.querySelector("#name");
-    btnFetch = document.querySelector("#fetch");
     btnDownload = document.querySelector("#download");
     outLog = document.querySelector("#log");
     outDownloads = document.querySelector("#downloads");
@@ -36,47 +35,41 @@ window.onload = (e) => {
     jobsRunning = 0;
 
     // Add functions to site elements
-    btnFetch.onclick = fetchProjects;
-    btnDownload.onclick = downloadProjects;
+    btnDownload.onclick = download;
     projectData = {};
     projectMetadata = {};
 }
 
-function fetchProjects() {
+// Thanks to
+// https://www.freecodecamp.org/news/javascript-promise-tutorial-how-to-resolve-or-reject-promises-in-js/
+// for helping me understand Promises!
+
+function download() {
     if (!running && inAccountName.value)
     {
+        username = inAccountName.value;
         // Prevent from running twice
         running = true;
         // Clear projects, metadata, and log
         projectData = {};
         projectMetadata = {};
         pageLogClear();
-        // Fetch project data, then download info
-        fetchUserData(inAccountName.value);
+
+        // Fetch user data, then download project info
+        fetchUserData(username)
+        .then(fetchProjectData)
+        .then(downloadAll(username))
+        .finally(() => {
+            running = false;
+        });
     }
 }
 
-function downloadProjects() {
-    if (!running && inAccountName.value)
-    {
-        // Prevent from running twice
-        running = true;
-        // Clear projects, metadata, and log
-        projectData = {};
-        projectMetadata = {};
-        pageLogClear();
-        // Fetch project data, then download info
-        fetchProjectData();
-    }
-}
+async function fetchUserData(user = "turtlehat", offset = DEFAULT_OFFSET) {
 
-async function fetchUserData(username = "turtlehat", limit = DEFAULT_LIMIT, offset = DEFAULT_OFFSET) {
-    jobsRunning++
+    pageLogUser(`Fetching User Data...`, user);
 
-    pageLogUser(`Fetching User Data...`, username);
-
-    let url = `php/get-user-projects-scratch.php?username=${username}&limit=${limit}&offset=${offset}`;
-    console.log(url);
+    const url = `php/get-user-scratch.php?username=${user}`;
 
     // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
 
@@ -85,42 +78,33 @@ async function fetchUserData(username = "turtlehat", limit = DEFAULT_LIMIT, offs
         { method: 'GET' }
         );
 
-    console.log(request.url);
-
     doAjax(request)
     .then((response) => {
-        pageLogUser(`Fetching user data successful!`, username);
-        console.log(response);
+        pageLogUser(`Fetching user data successful!`, user);
+        userData = response;
+        return Promise.resolve();
     })
-    .catch((e) => {
-        pageLogUser(e, username);
-    })
-    .then(() => {
-        finishJob();
+    .catch((error) => {
+        pageLogUser(`Error occurred fetching user data! ${error}`, user);
+        return Promise.reject();
     });
 }
 
 // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
 async function doAjax(request) {
     const response = await fetch(request);
-
     if (response.ok) {
-        console.log(response);
-        const responseText = await response.json();
-        return Promise.resolve(responseText);
+        return Promise.resolve(response.json());
     }
     else {
-        return Promise.reject(`Error occurred fetching user data! ${response.status}`);
+        return Promise.reject(response.status);
     }
 }
 
-async function fetchProjectData(id = SAMPLE_PROJECT) {
-    jobsRunning++;
-    
-    pageLogProject(`Fetching Project...`, id, 1);
-
-    // Pass custom info to be printed with progress updates,
+async function fetchUserProjects(username) {
+    // Setup custom info to be printed with progress updates,
     // obtained from .sb Downloader documentation
+
     let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
     downloadOptions.customOptions = { id: id, step: 0 };
 
@@ -134,49 +118,36 @@ async function fetchProjectData(id = SAMPLE_PROJECT) {
         );
     }
 
+    fetchProjectData(SAMPLE_PROJECT, downloadOptions)
+    .then((id) => {
+        pageLogProject(`Download of ${projectMetadata[id].title}.${p.type} successful!`, id, 2);
+        return Promise.resolve();
+    })
+    .catch((error) => {
+        if (error && error.name === 'AbortError') {
+            pageLogProject(`Download of ${projectMetadata[id].title} aborted!`, id, 1);
+        } else {
+            pageLogProject(`Error occurred downloading ${projectMetadata[id].title}! ${error}`, id, 1);
+        }
+        return Promise.reject();
+    });
+}
+
+async function fetchProjectData(id = SAMPLE_PROJECT, downloadOptions = DEFAULT_DOWNLOAD_OPTIONS) {
+    pageLogProject(`Fetching Project...`, id, 1);
+
     // Promise handling code clipped from .sb Downloader documentation
     // https://github.com/forkphorus/sb-downloader#aborting
     // Also referenced MDN page on Using Promises
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises
 
-    // First get project metadata
-    SBDL.getProjectMetadata(id, downloadOptions)
-    .then((m) => {
-        jobsRunning++;
-        // If successful, log it in metadata object
-        downloadOptions.customOptions.step = 2;
-
-        pageLogProject(`Metadata download of ${m.title} successful!`, id, 1);
-        projectMetadata[id] = m;
-
-        // Start a new promise to get project data
-        SBDL.downloadProjectFromID(id, downloadOptions)
-        .then((p) => {
-            pageLogProject(`Download of ${projectMetadata[id].title}.${p.type} successful!`, id, 2);
-            projectData[id] = p;
-
-            downloadAll(inAccountName.value);
-        })
-        .catch((e) => {
-            if (e && e.name === 'AbortError') {
-                pageLogProject(`Download of ${projectMetadata[id].title} aborted!`, id, 1);
-            } else {
-                pageLogProject(`Error occurred downloading ${projectMetadata[id].title}! ${e}`, id, 1);
-            }
-        })
-        .then(() => {
-            finishJob();
-        });
+    SBDL.downloadProjectFromID(id, downloadOptions)
+    .then((project) => {
+        projectData[id] = project;
+        return Promise.resolve(id);
     })
-    .catch((e) => {
-        if (e && e.name === 'AbortError') {
-            pageLogProject(`Metadata download aborted!`, id, 0);
-        } else {
-            pageLogProject(`Error occurred downloading metadata! ${e}`, id, 0);
-        }
-    })
-    .then(() => {
-        finishJob();
+    .catch((error) => {
+        return Promise.reject(error);
     });
 }
 
@@ -184,6 +155,8 @@ async function fetchProjectData(id = SAMPLE_PROJECT) {
 // Downloads all project data and metadata in a zip using JSZip
 function downloadAll(label) {
     let zip = new JSZip();
+
+    zip.file(`${username}.json`, JSON.stringify(userData));
 
     // Zip up the metadata and project file for each project
     for (let p in projectData)
@@ -199,16 +172,6 @@ function downloadAll(label) {
     });
 }
 
-function finishJob() {
-    jobsRunning--;
-        
-    if (jobsRunning <= 0)
-    {
-        jobsRunning = 0;
-        running = false;
-    }
-}
-
 function pageLog(message, element = null) {
     let logMessage = element;
     if (!element) {
@@ -218,10 +181,10 @@ function pageLog(message, element = null) {
     outLog.appendChild(logMessage);
 }
 
-function pageLogUser(message, username) {
+function pageLogUser(message, user) {
     pageLog(
-        `[${username}] ${message}`,
-        pageFindMessage(`message-${username}`)
+        `[${user}] ${message}`,
+        pageFindMessage(`message-${user}`)
     );
 }
 

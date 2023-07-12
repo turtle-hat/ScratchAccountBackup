@@ -1,12 +1,13 @@
 # Scratch Account Backup Tool
 A program for downloading all projects on a given Scratch user's account.
 
+Requires a PHP proxy server to fetch user info from the Scratch API.
+
 # Usage
-1. Download files to your computer
-2. Open `index.html` in your browser of choice
-3. Enter Scratch username into the Account Name field
-4. Hit Fetch Project List
-5. Success probably, yay! :D
+1. Open `index.html` in your browser of choice
+2. Enter Scratch username into the Account Name field
+3. Hit Download User Data
+4. Success probably, yay! :D
 
 # Credits
 Developed by @turtle-hat ([@turtlehat](https://scratch.mit.edu/users/turtlehat) on Scratch)
