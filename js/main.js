@@ -40,9 +40,8 @@ window.onload = (e) => {
     projectMetadata = {};
 }
 
-// Thanks to
+// Thanks to Tapas Adhikary for helping me understand Promises with their article!
 // https://www.freecodecamp.org/news/javascript-promise-tutorial-how-to-resolve-or-reject-promises-in-js/
-// for helping me understand Promises!
 
 function download() {
     if (!running && inAccountName.value)
@@ -56,49 +55,43 @@ function download() {
         pageLogClear();
 
         // Fetch user data, then download project info
-        fetchUserData(username)
-        .then(fetchProjectData)
-        .then(downloadAll(username))
+        doAjax(`php/get-user-scratch.php?username=${username}`)
+        .then((response) => {
+            userData = response;
+            pageLogUser("Success! User data stored.", username);
+        })
+        .then(() => {
+            console.log("egueguegu");
+        })
+        .catch(() => {
+            pageLogUser(`Could not find data for that user!`, username);
+        })
         .finally(() => {
             running = false;
         });
     }
 }
 
-async function fetchUserData(user = "turtlehat", offset = DEFAULT_OFFSET) {
-
-    pageLogUser(`Fetching User Data...`, user);
-
-    const url = `php/get-user-scratch.php?username=${user}`;
-
-    // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
-
+// Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
+async function doAjax(url) {    
     const request = new Request(
         url,
         { method: 'GET' }
         );
 
-    doAjax(request)
-    .then((response) => {
-        pageLogUser(`Fetching user data successful!`, user);
-        userData = response;
-        return Promise.resolve();
-    })
-    .catch((error) => {
-        pageLogUser(`Error occurred fetching user data! ${error}`, user);
-        return Promise.reject();
-    });
-}
-
-// Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
-async function doAjax(request) {
+    // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
     const response = await fetch(request);
     if (response.ok) {
-        return Promise.resolve(response.json());
+        const responseJson = await response.json();
+        return Promise.resolve(responseJson);
     }
     else {
-        return Promise.reject(response.status);
+        return Promise.reject();
     }
+}
+
+async function fetchUserData(user) {
+    
 }
 
 async function fetchUserProjects(username) {
@@ -120,7 +113,7 @@ async function fetchUserProjects(username) {
 
     fetchProjectData(SAMPLE_PROJECT, downloadOptions)
     .then((id) => {
-        pageLogProject(`Download of ${projectMetadata[id].title}.${p.type} successful!`, id, 2);
+        pageLogProject(`Successfully fetched ${projectMetadata[id].title}.${p.type}`, id, 2);
         return Promise.resolve();
     })
     .catch((error) => {
@@ -188,7 +181,7 @@ function pageLogUser(message, user) {
     );
 }
 
-function pageLogProject(message, projectID, step, stepMax = 2) {
+function pageLogProject(message, projectID, step, stepMax = 1) {
     pageLog(
         `[${projectID}|${step}/${stepMax}] ${message}`,
         pageFindMessage(`message-${projectID}-${step}`)
