@@ -55,17 +55,10 @@ function download() {
         pageLogClear();
 
         // Fetch user data, then download project info
-        doAjax(`php/get-user-scratch.php?username=${username}`)
-        .then((response) => {
-            userData = response;
-            pageLogUser("Success! User data stored.", username);
-        })
-        .then(() => {
-            console.log("egueguegu");
-        })
-        .catch(() => {
-            pageLogUser(`Could not find data for that user!`, username);
-        })
+        fetchUserData(username)
+        .then(fetchUserProjects())
+        .then()
+        .catch()
         .finally(() => {
             running = false;
         });
@@ -90,44 +83,56 @@ async function doAjax(url) {
     }
 }
 
+// Pass Ajax request into a function just to send the right messages
 async function fetchUserData(user) {
-    
+    doAjax(`php/get-user-scratch.php?username=${user}`)
+        .then((response) => {
+            userData = response;
+            pageLog("Success! User data stored.", user);
+            return Promise.resolve();
+        })
+        .catch(() => {
+            pageLog(`Could not find data for that user!`, user);
+            return Promise.reject();
+        });
 }
 
 async function fetchUserProjects(username) {
     // Setup custom info to be printed with progress updates,
     // obtained from .sb Downloader documentation
 
+    let projectID = SAMPLE_PROJECT;
+
     let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
-    downloadOptions.customOptions = { id: id, step: 0 };
+    downloadOptions.customOptions = { process: projectID, step: 0 };
 
     // May be called periodically with progress updates.
     downloadOptions.onProgress = (type, loaded, total) => {
         // type is 'metadata', 'project', 'assets', or 'compress'
-        pageLogProject(
+        pageLog(
             `${(loaded / total * 100).toFixed(0)}% - ${type}`,
-            downloadOptions.customOptions.id,
-            downloadOptions.customOptions.step
+            downloadOptions.customOptions.process,
+            downloadOptions.customOptions.step, 2
         );
     }
 
-    fetchProjectData(SAMPLE_PROJECT, downloadOptions)
+    fetchProject(SAMPLE_PROJECT, downloadOptions)
     .then((id) => {
-        pageLogProject(`Successfully fetched ${projectMetadata[id].title}.${p.type}`, id, 2);
+        pageLog(`Successfully fetched ${projectMetadata[id].title}.${p.type}`, id, 2, 2);
         return Promise.resolve();
     })
     .catch((error) => {
         if (error && error.name === 'AbortError') {
-            pageLogProject(`Download of ${projectMetadata[id].title} aborted!`, id, 1);
+            pageLog(`Download of ${projectMetadata[projectID].title} aborted!`, id, 1, 2);
         } else {
-            pageLogProject(`Error occurred downloading ${projectMetadata[id].title}! ${error}`, id, 1);
+            pageLog(`Error occurred downloading ${projectMetadata[projectID].title}! ${error}`, id, 1, 2);
         }
         return Promise.reject();
     });
 }
 
-async function fetchProjectData(id = SAMPLE_PROJECT, downloadOptions = DEFAULT_DOWNLOAD_OPTIONS) {
-    pageLogProject(`Fetching Project...`, id, 1);
+async function fetchProject(id = SAMPLE_PROJECT, downloadOptions = DEFAULT_DOWNLOAD_OPTIONS) {
+    pageLog(`Fetching Project...`, id, [1, 2]);
 
     // Promise handling code clipped from .sb Downloader documentation
     // https://github.com/forkphorus/sb-downloader#aborting
@@ -165,38 +170,20 @@ function downloadAll(label) {
     });
 }
 
-function pageLog(message, element = null) {
-    let logMessage = element;
-    if (!element) {
-        logMessage = document.createElement("p")
-    }
-    logMessage.innerHTML = message;
+// Sends a message to the page for the user to see
+function pageLog(message, process = "", step = 0, max = 0) {
+    let logMessage = document.createElement("p");
+    logMessage.innerHTML = `${
+        // If process, add it in square brackets
+        process ? `[${progress}${
+            // If also step, add it after a pipe
+            step > 0 ? `|${step}${
+                // If also max, add it after a slash
+                max > 0 ? `/${max}` : ``
+            }` : ``
+        }] ` : ``
+    }${message}`;
     outLog.appendChild(logMessage);
-}
-
-function pageLogUser(message, user) {
-    pageLog(
-        `[${user}] ${message}`,
-        pageFindMessage(`message-${user}`)
-    );
-}
-
-function pageLogProject(message, projectID, step, stepMax = 1) {
-    pageLog(
-        `[${projectID}|${step}/${stepMax}] ${message}`,
-        pageFindMessage(`message-${projectID}-${step}`)
-    );
-}
-
-function pageFindMessage(id) {
-    // Try to find existing message with same generated ID
-    let logMessage = document.querySelector(`#${id}`);
-    // If message doesn't exist, make it and set its ID
-    if (!logMessage) {
-        logMessage = document.createElement("p");
-        logMessage.id = id;
-    }
-    return logMessage;
 }
 
 // Code obtained from https://www.javascripttutorial.net/dom/manipulating/remove-all-child-nodes/
