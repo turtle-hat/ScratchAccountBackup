@@ -55,8 +55,8 @@ function download() {
         pageLogClear();
 
         // Fetch user data, then download project info
-        fetchUserData(username)
-        .then(fetchUserProjects())
+        fetchUser(username)
+        .then(fetchUserProjectData())
         .then()
         .catch()
         .finally(() => {
@@ -84,7 +84,7 @@ async function doAjax(url) {
 }
 
 // Pass Ajax request into a function just to send the right messages
-async function fetchUserData(user) {
+async function fetchUser(user) {
     doAjax(`php/get-user-scratch.php?username=${user}`)
         .then((response) => {
             userData = response;
@@ -97,7 +97,7 @@ async function fetchUserData(user) {
         });
 }
 
-async function fetchUserProjects(username) {
+async function fetchUserProjectData(username) {
     // Setup custom info to be printed with progress updates,
     // obtained from .sb Downloader documentation
 
@@ -175,7 +175,7 @@ function pageLog(message, process = "", step = 0, max = 0) {
     let logMessage = document.createElement("p");
     logMessage.innerHTML = `${
         // If process, add it in square brackets
-        process ? `[${progress}${
+        process ? `[${process}${
             // If also step, add it after a pipe
             step > 0 ? `|${step}${
                 // If also max, add it after a slash
