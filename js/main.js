@@ -43,7 +43,7 @@ window.onload = (e) => {
 // Thanks to Tapas Adhikary for helping me understand Promises with their article!
 // https://www.freecodecamp.org/news/javascript-promise-tutorial-how-to-resolve-or-reject-promises-in-js/
 
-function download() {
+async function download() {
     if (!running && inAccountName.value)
     {
         username = inAccountName.value;
@@ -54,46 +54,33 @@ function download() {
         projectMetadata = {};
         pageLogClear();
 
-        const userDataPromise = new Promise((resolve, reject) => {
-            doAjax(`php/get-user-scratch.php?username=${username}`)
-            .then((response) => {
-                userData = response;
-                pageLog("Success! User data stored.", username);
-                console.log("first");
-                resolve();
-            })
-            .catch(() => {
-                reject();
-            });
-        });
-        // Fetch user data, then download project info
-        
-        userDataPromise.then(fetchUserProjectData())
-        .then()
-        .catch(() => {
-            pageLog("Something went wrong!");
-        })
-        .finally(() => {
-            running = false;
-        });
+        try {
+            userData = await doAjax(`php/get-user-scratch.php?username=${username}`)
+            pageLog("Success! User data stored.", username);
+        }
+        catch (errorMessage) {
+            pageLog(errorMessage, "ERROR");
+        }
+        running = false;
     }
 }
 
 // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
-async function doAjax(url) {
+function doAjax(url) {
     const request = new Request(
         url,
         { method: 'GET' }
         );
-
+    
+    // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
     return new Promise((resolve, reject) => {
-        // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
-        fetch(request)
-        .then((response) => {
-            resolve(response.json());
-        })
-        .catch(() => {
-            reject();
+        const response = fetch(request);
+        response.then((success) => {
+            let responseJson = success.json();
+            console.log(responseJson);
+            resolve(responseJson);
+        }).catch((fail) => {
+            reject("Couldn't get user data!");
         });
     });
 }
