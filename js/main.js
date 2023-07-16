@@ -54,11 +54,25 @@ function download() {
         projectMetadata = {};
         pageLogClear();
 
+        const userDataPromise = new Promise((resolve, reject) => {
+            doAjax(`php/get-user-scratch.php?username=${username}`)
+            .then((response) => {
+                userData = response;
+                pageLog("Success! User data stored.", username);
+                console.log("first");
+                resolve();
+            })
+            .catch(() => {
+                reject();
+            });
+        });
         // Fetch user data, then download project info
-        fetchUser(username)
-        .then(fetchUserProjectData())
+        
+        userDataPromise.then(fetchUserProjectData())
         .then()
-        .catch()
+        .catch(() => {
+            pageLog("Something went wrong!");
+        })
         .finally(() => {
             running = false;
         });
@@ -66,40 +80,29 @@ function download() {
 }
 
 // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
-async function doAjax(url) {    
+async function doAjax(url) {
     const request = new Request(
         url,
         { method: 'GET' }
         );
 
-    // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
-    const response = await fetch(request);
-    if (response.ok) {
-        const responseJson = await response.json();
-        return Promise.resolve(responseJson);
-    }
-    else {
-        return Promise.reject();
-    }
-}
-
-// Pass Ajax request into a function just to send the right messages
-async function fetchUser(user) {
-    doAjax(`php/get-user-scratch.php?username=${user}`)
+    return new Promise((resolve, reject) => {
+        // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
+        fetch(request)
         .then((response) => {
-            userData = response;
-            pageLog("Success! User data stored.", user);
-            return Promise.resolve();
+            resolve(response.json());
         })
         .catch(() => {
-            pageLog(`Could not find data for that user!`, user);
-            return Promise.reject();
+            reject();
         });
+    });
 }
 
 async function fetchUserProjectData(username) {
     // Setup custom info to be printed with progress updates,
     // obtained from .sb Downloader documentation
+
+    console.log("second");
 
     let projectID = SAMPLE_PROJECT;
 
@@ -118,14 +121,14 @@ async function fetchUserProjectData(username) {
 
     fetchProject(SAMPLE_PROJECT, downloadOptions)
     .then((id) => {
-        pageLog(`Successfully fetched ${projectMetadata[id].title}.${p.type}`, id, 2, 2);
+        //pageLog(`Successfully fetched ${projectMetadata[id].title}.${p.type}`, id, 2, 2);
         return Promise.resolve();
     })
     .catch((error) => {
         if (error && error.name === 'AbortError') {
-            pageLog(`Download of ${projectMetadata[projectID].title} aborted!`, id, 1, 2);
+            //pageLog(`Download of ${projectMetadata[projectID].title} aborted!`, id, 1, 2);
         } else {
-            pageLog(`Error occurred downloading ${projectMetadata[projectID].title}! ${error}`, id, 1, 2);
+            //pageLog(`Error occurred downloading ${projectMetadata[projectID].title}! ${error}`, id, 1, 2);
         }
         return Promise.reject();
     });
