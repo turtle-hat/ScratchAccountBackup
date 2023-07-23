@@ -54,35 +54,64 @@ async function download() {
         projectMetadata = {};
         pageLogClear();
 
-        try {
-            userData = await doAjax(`php/get-user-scratch.php?username=${username}`)
+        // let userResponse = await doAjax(`php/get-user-scratch.php?username=${username}`);
+
+        doAjax(`php/get-user-scratch.php?username=${username}`)
+        .then((success) => {
+            // ReadableStream test, turns out it just returns bytes
+            // const reader = success.body.getReader();
+            // readStream();
+            // function readStream() {
+            //     return reader.read().then(({ done, value }) => {
+            //         if (done) {
+            //             return;
+            //         }
+            //         console.log(value);
+            //         return readStream();
+            //     })
+            // }
+            console.log(success);
+
             pageLog("Success! User data stored.", username);
-        }
-        catch (errorMessage) {
-            pageLog(errorMessage, "ERROR");
-        }
-        running = false;
+        })
+        .catch((errorMessage) => {
+            if (errorMessage) {
+                pageLog(errorMessage, "ERROR");
+            }
+        })
+        .finally(() => {
+            running = false;
+        });
     }
 }
 
+
+
 // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
-function doAjax(url) {
-    const request = new Request(
-        url,
-        { method: 'GET' }
-        );
-    
-    // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
-    return new Promise((resolve, reject) => {
-        const response = fetch(request);
-        response.then((success) => {
-            let responseJson = success.json();
-            console.log(responseJson);
-            resolve(responseJson);
-        }).catch((fail) => {
-            reject("Couldn't get user data!");
-        });
-    });
+async function doAjax(url) {
+    try {
+        const request = new Request(
+            url,
+            { method: 'GET' }
+            );
+            
+        // Credit to my dad for teaching me I need to await both of these functions!
+        const response = await fetch(request);
+        return await response.json();
+    } catch(e) {
+        return "Couldn't get user data!";
+    }
+
+    // // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
+    // return new Promise((resolve, reject) => {
+    //     const response = fetch(request);
+    //     console.log(response);
+    //     response.then((success) => {
+    //         resolve(success);
+    //     }).catch((fail) => {
+    //         reject("Couldn't get user data!");
+    //     });
+    // });
 }
 
 async function fetchUserProjectData(username) {
