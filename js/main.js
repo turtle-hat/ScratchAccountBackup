@@ -14,10 +14,16 @@ let outDownloads;
 // User data retrieved from Scratch API
 let username;
 let userData;
-let userProjectIDs;
+let favoriteMetadata;
+let favoriteIDs;
+let followingMetadata;
+let followingIDs;
+let followerMetadata;
+let followerIDs;
 
 // Project data to be downloaded
 let projectMetadata;
+let projectIDs;
 let projectData;
 
 // Application progress tracking
@@ -28,16 +34,22 @@ window.onload = (e) => {
     inAccountName = document.querySelector("#name");
     btnDownload = document.querySelector("#download");
     outLog = document.querySelector("#log");
-    outDownloads = document.querySelector("#downloads");
 
     // Initialize variables
     running = false;
-    jobsRunning = 0;
+    userData = {};
+    projectMetadata = {};
+    projectIDs = [];
+    favoriteMetadata = {};
+    favoriteIDs = [];
+    followingMetadata = {};
+    followingIDs = [];
+    followerMetadata = {};
+    followerIDs = [];
+    projectData = {};
 
     // Add functions to site elements
     btnDownload.onclick = download;
-    projectData = {};
-    projectMetadata = {};
 }
 
 // Thanks to Tapas Adhikary for helping me understand Promises with their article!
@@ -49,30 +61,110 @@ async function download() {
         username = inAccountName.value;
         // Prevent from running twice
         running = true;
+        btnDownload.disabled = "disabled";
         // Clear projects, metadata, and log
-        projectData = {};
         projectMetadata = {};
+        projectIDs = [];
+        favoriteMetadata = {};
+        favoriteIDs = [];
+        followingMetadata = {};
+        followingIDs = [];
+        followerMetadata = {};
+        followerIDs = [];
+        projectData = {};
         pageLogClear();
-
-        // let userResponse = await doAjax(`php/get-user-scratch.php?username=${username}`);
 
         doAjax(`php/get-user-scratch.php?username=${username}`)
         .then((success) => {
-            // ReadableStream test, turns out it just returns bytes
-            // const reader = success.body.getReader();
-            // readStream();
-            // function readStream() {
-            //     return reader.read().then(({ done, value }) => {
-            //         if (done) {
-            //             return;
-            //         }
-            //         console.log(value);
-            //         return readStream();
-            //     })
-            // }
-            console.log(success);
-
+            if (!success) {
+                throw("Could not find user data! Did you type your username correctly?");
+            }
+            userData = success;
             pageLog("Success! User data stored.", username);
+
+            pageLog("Fetching user's projects...", username);
+            return fetchUserIterableData(
+                "projects",
+                projectMetadata,
+                projectIDs,
+                username,
+                "Fetching user's projects...");
+        })
+        .then((response) => {
+            if (!response) {
+                throw(`Error fetching project data! ${projectIDs.length} projects successfully fetched.`);
+            }
+            pageLog(`All ${projectIDs.length} projects fetched successfully!`, username);
+            
+            pageLog("Fetching user's favorited projects...", username);
+            return fetchUserIterableData(
+                "favorites",
+                favoriteMetadata,
+                favoriteIDs,
+                username,
+                "Fetching user's favorited projects...");
+        })
+        .then((response) => {
+            if (!response) {
+                throw(`Error fetching favorited projects! ${favoriteIDs.length} projects successfully fetched.`);
+            }
+            pageLog(`All ${favoriteIDs.length} favorited projects fetched successfully!`, username);
+
+            pageLog("Fetching users this account is following...", username);
+            return fetchUserIterableData(
+                "following",
+                followingMetadata,
+                followingIDs,
+                username,
+                "Fetching users this account is following...",
+                ["id", "username", "scratchteam", "history"]);
+        })
+        .then((response) => {
+            if (!response) {
+                throw(`Error fetching users this account is following! ${followingIDs.length} users successfully fetched.`);
+            }
+            pageLog(`All ${followingIDs.length} users this account is following fetched successfully!`, username);
+
+            pageLog("Fetching followers...", username);
+            return fetchUserIterableData(
+                "followers",
+                followerMetadata,
+                followerIDs,
+                username,
+                "Fetching followers...",
+                ["id", "username", "scratchteam", "history"]);
+        })
+        .then((response) => {
+            if (!response) {
+                throw(`Error fetching followers! ${followerIDs.length} users successfully fetched.`);
+            }
+            pageLog(`All ${followerIDs.length} followers fetched successfully!`, username);
+            
+            let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
+
+            // Recurse through all project IDs and download each one with SBDL
+            for (let i = 0; i < projectIDs.length; i++) {
+                let id = projectIDs[i];
+
+                // Fetch project data
+                fetchProject(id, downloadOptions)
+                .then((project) => {
+                    if (project) {
+                        pageLog(`Project ${projectMetadata[id].title} downloaded!`, id, (i + 1), projectIDs.length);
+                        projectData[id] = project;
+                        downloadCount++;
+                    }
+                    else {
+                        pageLog(`Error occurred downloading ${projectMetadata[id].title}!`, `ERROR ${id}`);
+                    }
+                })
+                .catch((error) => {
+                    pageLog(`Error occurred downloading ${projectMetadata[id].title}!`, `ERROR ${id}`);
+                });
+            }
+        })
+        .then((response) => {
+            pageLog("End!");
         })
         .catch((errorMessage) => {
             if (errorMessage) {
@@ -81,13 +173,13 @@ async function download() {
         })
         .finally(() => {
             running = false;
+            btnDownload.disabled = "";
         });
     }
 }
 
-
-
 // Code instructions for reading Response from https://developer.mozilla.org/en-US/docs/Web/API/Response
+// Performs a fetch request to the specified URL and attempts to parse as JSON
 async function doAjax(url) {
     try {
         const request = new Request(
@@ -96,30 +188,54 @@ async function doAjax(url) {
             );
             
         // Credit to my dad for teaching me I need to await both of these functions!
-        const response = await fetch(request);
-        return await response.json();
+        return await (await fetch(request)).json();
     } catch(e) {
-        return "Couldn't get user data!";
+        return null;
     }
 
-    // // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
-    // return new Promise((resolve, reject) => {
-    //     const response = fetch(request);
-    //     console.log(response);
-    //     response.then((success) => {
-    //         resolve(success);
-    //     }).catch((fail) => {
-    //         reject("Couldn't get user data!");
-    //     });
-    // });
+    // Fetch API code from https://developer.mozilla.org/en-US/docs/Web/API/fetch#examples
 }
 
-async function fetchUserProjectData(username) {
-    // Setup custom info to be printed with progress updates,
-    // obtained from .sb Downloader documentation
+// Generic function to iterate over data fetched from the Scratch API
+async function fetchUserIterableData(
+    endpoint, dataObject, idArray, username, message, allowedKeys = [], limit = 40, offset = 0
+    ) {
+    // Get AJAX response from requested PHP script
+    response = await doAjax(
+        `php/get-user-info-scratch.php?endpoint=${endpoint}&username=${username}&limit=${limit}&offset=${offset}`);
+    // If the response failed, return false
+    if (!response) {
+        return false;
+    }
 
-    console.log("second");
+    // For all items in response
+    for (const item of response)
+    {
+        // Add it to the object specified, accessed by ID
+        // If allowlist is specified, only add allowed keys to dataObject
+        if (allowedKeys.length > 0) {
+            dataObject[item.id] = {};
+            for (let key of allowedKeys) {
+                dataObject[item.id][key] = item[key];
+            }
+        }
+        else {
+            dataObject[item.id] = item;
+        }
+        // Add the ID to the array specified
+        idArray.push(item.id);
+        pageLog(message, username, idArray.length, (offset + response.length), true);
+    }
+    if (response.length >= limit)
+    {
+        return fetchUserIterableData(
+            endpoint, dataObject, idArray, username, message, allowedKeys, limit, offset + limit
+            );
+    }
+    return true;
+}
 
+async function fetchProjectsFromMetadata(projectIndex, downloadOptions) {
     let projectID = SAMPLE_PROJECT;
 
     let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
@@ -158,14 +274,12 @@ async function fetchProject(id = SAMPLE_PROJECT, downloadOptions = DEFAULT_DOWNL
     // Also referenced MDN page on Using Promises
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises
 
-    SBDL.downloadProjectFromID(id, downloadOptions)
-    .then((project) => {
-        projectData[id] = project;
-        return Promise.resolve(id);
-    })
-    .catch((error) => {
-        return Promise.reject(error);
-    });
+    try {
+        return await SBDL.downloadProjectFromID(id, downloadOptions);
+    } catch (error) {
+        return null;
+    }
+    
 }
 
 
@@ -190,8 +304,14 @@ function downloadAll(label) {
 }
 
 // Sends a message to the page for the user to see
-function pageLog(message, process = "", step = 0, max = 0) {
-    let logMessage = document.createElement("p");
+function pageLog(message, process = "", step = 0, max = 0, overwrite = false) {
+    let logMessage;
+    if (overwrite) {
+        logMessage = document.querySelector("#log").lastChild;
+    }
+    else {
+        logMessage = document.createElement("p");
+    }
     logMessage.innerHTML = `${
         // If process, add it in square brackets
         process ? `[${process}${
