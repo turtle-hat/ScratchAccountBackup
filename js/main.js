@@ -4,6 +4,7 @@ const DEFAULT_DOWNLOAD_OPTIONS = {
 };
 const DEFAULT_LIMIT = 40;
 const DEFAULT_OFFSET = 0;
+const DEFAULT_PROJECTS_PER_PACKAGE = 50;
 
 // Page elements
 let inAccountName;
@@ -75,11 +76,11 @@ async function download() {
         pageLogClear();
 
         doAjax(`php/get-user-scratch.php?username=${username}`)
-        .then((success) => {
-            if (!success) {
+        .then((response) => {
+            if (!response) {
                 throw("Could not find user data! Did you type your username correctly?");
             }
-            userData = success;
+            userData = response;
             pageLog("Success! User data stored.", username);
 
             pageLog("Fetching user's projects...", username);
@@ -139,32 +140,19 @@ async function download() {
                 throw(`Error fetching followers! ${followerIDs.length} users successfully fetched.`);
             }
             pageLog(`All ${followerIDs.length} followers fetched successfully!`, username);
-            
-            let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
 
             // Recurse through all project IDs and download each one with SBDL
-            for (let i = 0; i < projectIDs.length; i++) {
-                let id = projectIDs[i];
 
-                // Fetch project data
-                fetchProject(id, downloadOptions)
-                .then((project) => {
-                    if (project) {
-                        pageLog(`Project ${projectMetadata[id].title} downloaded!`, id, (i + 1), projectIDs.length);
-                        projectData[id] = project;
-                        downloadCount++;
-                    }
-                    else {
-                        pageLog(`Error occurred downloading ${projectMetadata[id].title}!`, `ERROR ${id}`);
-                    }
-                })
-                .catch((error) => {
-                    pageLog(`Error occurred downloading ${projectMetadata[id].title}!`, `ERROR ${id}`);
-                });
-            }
+            let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
+
+            return fetchProjectsFromMetadata(0, downloadOptions);
         })
         .then((response) => {
-            pageLog("End!");
+            let packageSize = DEFAULT_PROJECTS_PER_PACKAGE;
+            return downloadAll(username, packageSize, Math.ceil(projectIDs.length/packageSize));
+        })
+        .then((response) => {
+            pageLog("Done!");
         })
         .catch((errorMessage) => {
             if (errorMessage) {
@@ -235,45 +223,30 @@ async function fetchUserIterableData(
     return true;
 }
 
-async function fetchProjectsFromMetadata(projectIndex, downloadOptions) {
-    let projectID = SAMPLE_PROJECT;
+async function fetchProjectsFromMetadata(projectIndex, downloadOptions, limit = 0) {
+    const id = projectIDs[projectIndex];
+    pageLog(`Fetching ${projectMetadata[id].title}...`, id, (projectIndex + 1), projectIDs.length);
 
-    let downloadOptions = DEFAULT_DOWNLOAD_OPTIONS;
-    downloadOptions.customOptions = { process: projectID, step: 0 };
-
-    // May be called periodically with progress updates.
-    downloadOptions.onProgress = (type, loaded, total) => {
-        // type is 'metadata', 'project', 'assets', or 'compress'
-        pageLog(
-            `${(loaded / total * 100).toFixed(0)}% - ${type}`,
-            downloadOptions.customOptions.process,
-            downloadOptions.customOptions.step, 2
-        );
+    response = await fetchProject(id, downloadOptions);
+    if (!response) {
+        pageLog(`Error occurred fetching ${projectMetadata[id].title}!`, `${id} ERROR`, (projectIndex + 1), projectIDs.length, true);
+    }
+    else {
+        pageLog(`Successfully fetched ${projectMetadata[id].title}.${response.type}!`, id, (projectIndex + 1), projectIDs.length, true);
+        projectData[id] = response;
     }
 
-    fetchProject(SAMPLE_PROJECT, downloadOptions)
-    .then((id) => {
-        //pageLog(`Successfully fetched ${projectMetadata[id].title}.${p.type}`, id, 2, 2);
-        return Promise.resolve();
-    })
-    .catch((error) => {
-        if (error && error.name === 'AbortError') {
-            //pageLog(`Download of ${projectMetadata[projectID].title} aborted!`, id, 1, 2);
-        } else {
-            //pageLog(`Error occurred downloading ${projectMetadata[projectID].title}! ${error}`, id, 1, 2);
-        }
-        return Promise.reject();
-    });
+    if (projectIndex + 1 < projectIDs.length && (projectIndex + 1 < limit || limit == 0)) {
+        return fetchProjectsFromMetadata(projectIndex + 1, downloadOptions, limit);
+    }
+    return true;
 }
 
 async function fetchProject(id = SAMPLE_PROJECT, downloadOptions = DEFAULT_DOWNLOAD_OPTIONS) {
-    pageLog(`Fetching Project...`, id, [1, 2]);
-
     // Promise handling code clipped from .sb Downloader documentation
     // https://github.com/forkphorus/sb-downloader#aborting
     // Also referenced MDN page on Using Promises
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises
-
     try {
         return await SBDL.downloadProjectFromID(id, downloadOptions);
     } catch (error) {
@@ -282,25 +255,53 @@ async function fetchProject(id = SAMPLE_PROJECT, downloadOptions = DEFAULT_DOWNL
     
 }
 
-
 // Downloads all project data and metadata in a zip using JSZip
-function downloadAll(label) {
+async function downloadAll(label, packageSize, packages, package = 0) {
+    pageLog("Zipping up data...", username);
+
     let zip = new JSZip();
 
-    zip.file(`${username}.json`, JSON.stringify(userData));
+    if (package == 0) {
+        zip.file(`${username}.json`, JSON.stringify(userData));
+        zip.file(`${username}-favorites.json`, JSON.stringify(favoriteMetadata));
+        zip.file(`${username}-following.json`, JSON.stringify(followingMetadata));
+        zip.file(`${username}-followers.json`, JSON.stringify(followerMetadata));
+    }
+
+    let zipCount = 0;
+    let zipLength = projectIDs.length;
 
     // Zip up the metadata and project file for each project
-    for (let p in projectData)
+    for (let j = package * packageSize; j < ((package * packageSize) + packageSize) && j < projectIDs.length; j++)
     {
+        let p = projectIDs[j];
+        console.log(`Zipping ${p}-${projectData[p].title}.${projectData[p].type}`);
+        pageLog(`Zipping ${p}-${projectData[p].title}.${projectData[p].type}...`, p, (j + 1), zipLength, true);
         zip.file(`${p}-${projectData[p].title}.${projectData[p].type}`, projectData[p].arrayBuffer);
         zip.file(`${p}-${projectData[p].title}.json`, JSON.stringify(projectMetadata[p]));
+        pageLog(`Zipped ${p}-${projectData[p].title}.${projectData[p].type}!`, p, (j + 1), zipLength, true);
     }
-    
-    // Save JSZip with filename, include accountName if it exists
-    zip.generateAsync({type:"blob"})
-    .then(function (blob) {
-        saveAs(blob, `scratch-backup-${label}.zip`);
-    });
+
+    // Save JSZip with filename, include account name
+    const blob = await zip.generateAsync({type:"blob"})
+
+    let filename = label;
+    if (packages > 1) {
+        filename = `${label}-${package + 1}`;
+    }
+    saveAs(await blob, `scratch-backup-${filename}.zip`)
+    if (packages > 1) {
+        pageLog("Download ready!", username, (package + 1), packages);
+    }
+    else {
+        pageLog("Download ready!", username);
+    }
+
+    if (package + 1 < packages) {
+        return downloadAll(username, packageSize, packages, package + 1);
+    }
+
+    return true;
 }
 
 // Sends a message to the page for the user to see
